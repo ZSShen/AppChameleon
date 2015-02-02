@@ -20,7 +20,7 @@ public class MainActivity extends Activity {
 
         /* Listen for button clicks. */
         Button button = (Button)findViewById(R.id.buttonCalculate);
-        button.setOnClickListener(calcBMI);
+        button.setOnClickListener(clickBmi);
     }
 
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    private OnClickListener calcBMI = new OnClickListener() {
+    private OnClickListener clickBmi = new OnClickListener() {
         public void onClick(View v) {
             /* Show the BMI value. */
             DecimalFormat formatter = new DecimalFormat("0.00");
