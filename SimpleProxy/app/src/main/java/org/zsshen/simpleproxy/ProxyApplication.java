@@ -2,7 +2,10 @@ package org.zsshen.simpleproxy;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
+import android.os.Bundle;
 import android.util.ArrayMap;
 import android.util.Log;
 
@@ -20,11 +23,11 @@ public class ProxyApplication extends Application {
     static private String NAME_ORIGINAL_APK = "Original.apk";
     static private String NAME_DIR_OPTMIZE_DEX = "DynamicOptDex";
     static private String NAME_DIR_LIB = "DynamicLib";
+    static private String STRING_META_APK_CLASS = "ORIGINAL_APPLICATION_CLASS_NAME";
     static private String LOGD_TAG_ERROR = "Error(SimpleProxy)";
     static private int SIZE_BUF = 1024;
 
-    protected void attachBaseContext(Context ctxBase)
-    {
+    protected void attachBaseContext(Context ctxBase) {
         boolean bRtnCode = true;
 
         /* Prepare the private storage for the dynamically loaded APK. */
@@ -48,13 +51,22 @@ public class ProxyApplication extends Application {
         return;
     }
 
-    public void onCreate()
-    {
+    public void onCreate() {
+        boolean bRtnCode = true;
+
+        Context ctxBase = this.getApplicationContext();
+        StringBuffer sbApk = new StringBuffer();
+        bRtnCode = getOrigApkClassName(ctxBase, sbApk);
+        if (!bRtnCode)
+            return;
+
+        String szApk = sbApk.toString();
+        Application appOrig = null;
+
         return;
     }
 
-    private boolean copyOrigApkFromAssetToInternal(Context ctxBase, String szOrigApk)
-    {
+    private boolean copyOrigApkFromAssetToInternal(Context ctxBase, String szOrigApk) {
         boolean bRtnCode = true;
 
         File fileApk = new File(szOrigApk);
@@ -97,10 +109,9 @@ public class ProxyApplication extends Application {
         return bRtnCode;
     }
 
-    private boolean assignClassLoaderToOrigApk(Context ctxBase, String szOrigApk, String szOptDex, String szLib)
-    {
+    private boolean assignClassLoaderToOrigApk(Context ctxBase, String szOrigApk, String szOptDex, String szLib) {
         Object objCurActThrd = ReflectionWrapper.invokeStaticMethod("android.app.ActivityThread", "currentActivityThread",
-                                                            new Class[]{}, new Object[]{});
+                new Class[]{}, new Object[]{});
         if (objCurActThrd == null) {
             Log.e(LOGD_TAG_ERROR, "Cannot get the current activity thread.");
             return false;
@@ -113,18 +124,19 @@ public class ProxyApplication extends Application {
         }
 
         String szPkg = ctxBase.getPackageName();
-        WeakReference wrefPkg = (WeakReference)mapPkg.get(szPkg);
+        WeakReference wrefPkg = (WeakReference) mapPkg.get(szPkg);
         if (wrefPkg == null) {
             Log.e(LOGD_TAG_ERROR, "Cannot get the weak reference of this proxy app.");
             return false;
         }
 
-        ClassLoader ldProxyApk = (ClassLoader)ReflectionWrapper.getFieldObject("android.app.LoadedApk", wrefPkg.get(),
-                                                                     "mClassLoader");
+        ClassLoader ldProxyApk = (ClassLoader) ReflectionWrapper.getFieldObject("android.app.LoadedApk", wrefPkg.get(),
+                "mClassLoader");
         if (ldProxyApk == null) {
             Log.e(LOGD_TAG_ERROR, "Cannot get the class loader of this proxy app.");
             return false;
         }
+
         DexClassLoader dxldOrigApk = new DexClassLoader(szOrigApk, szOptDex, szLib, ldProxyApk);
         if (dxldOrigApk == null) {
             Log.e(LOGD_TAG_ERROR, "Cannot create the class loader for the original app.");
@@ -135,4 +147,26 @@ public class ProxyApplication extends Application {
 
         return true;
     }
+
+    private boolean getOrigApkClassName(Context ctxBase, StringBuffer sbApk) {
+        try {
+            ApplicationInfo appInfo = ctxBase.getPackageManager().getApplicationInfo(ctxBase.getPackageName(),
+                    PackageManager.GET_META_DATA);
+            if (appInfo == null)
+                return false;
+
+            Bundle bdlXml = appInfo.metaData;
+            if (bdlXml == null)
+                return false;
+            if (!bdlXml.containsKey(STRING_META_APK_CLASS))
+                return false;
+
+            sbApk.append(bdlXml.getString(STRING_META_APK_CLASS));
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+        return true;
+    }
+
+
 }
