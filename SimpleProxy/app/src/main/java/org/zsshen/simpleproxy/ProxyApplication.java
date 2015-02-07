@@ -152,8 +152,10 @@ public class ProxyApplication extends Application {
                 return false;
             String szApkPkg = mCtxBase.getPackageName();
             ApplicationInfo appInfo = pkgMgr.getApplicationInfo(szApkPkg, PackageManager.GET_META_DATA);
-            if (appInfo == null)
+            if (appInfo == null) {
+                Log.d(LOGD_TAG_DEBUG, "The original app does not have application class.");
                 return false;
+            }
 
             Bundle bdlXml = appInfo.metaData;
             if (bdlXml == null)
