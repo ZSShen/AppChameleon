@@ -1,7 +1,6 @@
 package org.zsshen.simpleproxy;
 
 import android.app.Application;
-import android.app.Instrumentation;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
@@ -16,8 +15,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Iterator;
 
 import dalvik.system.DexClassLoader;
 
@@ -35,6 +36,7 @@ public class ProxyApplication extends Application {
 
     protected void attachBaseContext(Context ctxBase) {
         boolean bRtnCode = true;
+        super.attachBaseContext(ctxBase);
 
         /* Prepare the private storage for the dynamically loaded APK. */
         File fileOptDex = ctxBase.getDir(NAME_DIR_OPTMIZE_DEX, MODE_PRIVATE);
@@ -50,7 +52,7 @@ public class ProxyApplication extends Application {
             return;
 
         /*  Assign the class loader of this proxy application to the original application. */
-        bRtnCode = assignClassLoaderToOrigApk(ctxBase, szOrigApk, szOptDex, szLib);
+        bRtnCode = assignClassLoaderToOrigApk(szOrigApk, szOptDex, szLib);
         if (!bRtnCode)
             return;
 
@@ -62,6 +64,7 @@ public class ProxyApplication extends Application {
     public void onCreate() {
         boolean bRtnCode = true;
 
+        super.onCreate();
         StringBuffer sbApkClass = new StringBuffer();
         bRtnCode = getOrigApkClassName(sbApkClass);
         if (!bRtnCode)
@@ -72,7 +75,6 @@ public class ProxyApplication extends Application {
         if (!bRtnCode)
             return;
 
-        mOrigApp.onCreate();
         return;
     }
 
@@ -119,28 +121,45 @@ public class ProxyApplication extends Application {
         return bRtnCode;
     }
 
-    private boolean assignClassLoaderToOrigApk(Context ctxBase, String szOrigApk, String szOptDex, String szLib) {
-        Object objCurActThrd = ReflectionWrapper.invokeStaticMethod("android.app.ActivityThread",
-                "currentActivityThread", new Class[]{}, new Object[]{});
-        if (objCurActThrd == null)
-            return false;
-        ArrayMap mapPkg = (ArrayMap) ReflectionWrapper.getFieldObject("android.app.ActivityThread",
-                objCurActThrd, "mPackages");
-        if (mapPkg == null)
-            return false;
-        String szPkg = ctxBase.getPackageName();
-        WeakReference wrefPkg = (WeakReference) mapPkg.get(szPkg);
-        if (wrefPkg == null)
-            return false;
+    private boolean assignClassLoaderToOrigApk(String szOrigApk, String szOptDex, String szLib) {
 
-        ClassLoader ldProxyApk = (ClassLoader) ReflectionWrapper.getFieldObject("android.app.LoadedApk",
-                wrefPkg.get(), "mClassLoader");
-        if (ldProxyApk == null)
+        try {
+            Class clsActThrd = Class.forName("android.app.ActivityThread");
+            Class clsLoaded = Class.forName("android.app.LoadedApk");
+
+            Method mtdCurActTrd = clsActThrd.getMethod("currentActivityThread", new Class[]{});
+            Object objCurActThrd = mtdCurActTrd.invoke(null, new Object[]{});
+
+            Field fidPkg = clsActThrd.getDeclaredField("mPackages");
+            fidPkg.setAccessible(true);
+            ArrayMap mapPkg = (ArrayMap) fidPkg.get(objCurActThrd);
+
+            String szPkg = getPackageName();
+            WeakReference wrefPkg = (WeakReference) mapPkg.get(szPkg);
+
+            Field fidLoader = clsLoaded.getDeclaredField("mClassLoader");
+            fidLoader.setAccessible(true);
+            ClassLoader ldrProxy = (ClassLoader) fidLoader.get(wrefPkg.get());
+            DexClassLoader dxldOrigApk = new DexClassLoader(szOrigApk, szOptDex, szLib, ldrProxy);
+            fidLoader.set(wrefPkg.get(), dxldOrigApk);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
             return false;
-        DexClassLoader dxldOrigApk = new DexClassLoader(szOrigApk, szOptDex, szLib, ldProxyApk);
-        if (dxldOrigApk == null)
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
             return false;
-        ReflectionWrapper.setFieldObject("android.app.LoadedApk", wrefPkg.get(), "mClassLoader", dxldOrigApk);
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+            return false;
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        }
 
         return true;
     }
@@ -166,67 +185,82 @@ public class ProxyApplication extends Application {
             sbApk.append(bdlXml.getString(STRING_META_APK_CLASS));
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
+            return false;
         }
         return true;
     }
 
     private boolean patchRuntimeForOrigApk(String szApkClass) {
-        Object objCurActThrd = ReflectionWrapper.invokeStaticMethod("android.app.ActivityThread",
-                "currentActivityThread", new Class[]{}, new Object[]{});
-        if (objCurActThrd == null)
-            return false;
+        try {
+            /* Create the instance of the original app (appOrig). */
+            Class clsOrig = Class.forName(szApkClass, true, getClassLoader());
+            Application appOrig = (Application) clsOrig.newInstance();
 
-        Object objBoundApp = ReflectionWrapper.getFieldObject("android.app.ActivityThread", objCurActThrd,
-                "mBoundApplication");
-        if (objBoundApp == null)
-            return false;
-        Object objLoadedApk = ReflectionWrapper.getFieldObject("android.app.ActivityThread$AppBindData",
-                objBoundApp, "info");
-        if (objLoadedApk == null)
-            return false;
-        ReflectionWrapper.setFieldObject("android.app.LoadedApk", objLoadedApk, "mApplication", null);
+            /* Get the instance of the proxy app (appProxy). */
+            Application appProxy = (Application) getApplicationContext();
 
-        Object objProxyApp = ReflectionWrapper.getFieldObject("android.app.ActivityThread", objCurActThrd,
-                "mInitialApplication");
-        if (objProxyApp == null)
-            return false;
-        ArrayList listAllApp = (ArrayList) ReflectionWrapper.getFieldObject("android.app.ActivityThread",
-                objCurActThrd, "mAllApplications");
-        if (listAllApp == null)
-            return false;
-        listAllApp.remove(objProxyApp);
+            /* Force mbaseContext.mOuterContext to refer to appOrig. */
+            Class clsCtxImpl = Class.forName("android.app.ContextImpl");
+            Field fidOutCtx = clsCtxImpl.getDeclaredField("mOuterContext");
+            fidOutCtx.setAccessible(true);
+            fidOutCtx.set(mCtxBase, appOrig);
 
-        ApplicationInfo infoOrigApp = (ApplicationInfo) ReflectionWrapper.getFieldObject("android.app.LoadedApk",
-                objLoadedApk, "mApplicationInfo");
-        if (infoOrigApp == null)
-            return false;
-        ApplicationInfo infoBindDataOrigApp = (ApplicationInfo) ReflectionWrapper.getFieldObject(
-                "android.app.ActivityThread$AppBindData", objBoundApp, "appInfo");
-        if (infoBindDataOrigApp == null)
-            return false;
-        infoOrigApp.className = szApkClass;
-        infoBindDataOrigApp.className = szApkClass;
+            /* Get mPackageInfo of the context of the proxy app. */
+            Field fidPkgInfo = clsCtxImpl.getDeclaredField("mPackageInfo");
+            fidPkgInfo.setAccessible(true);
+            Object mPackageInfo = fidPkgInfo.get(mCtxBase);
 
-        mOrigApp = (Application) ReflectionWrapper.invokeMethod("android.app.LoadedApk", "makeApplication",
-                objLoadedApk,new Class[] {boolean.class, Instrumentation.class}, new Object[] {false, null});
-        if (mOrigApp == null) {
-            Log.e(LOGD_TAG_ERROR, "Cannot create the original app.");
-            return false;
-        }
-        ReflectionWrapper.setFieldObject("android.app.ActivityThread", objCurActThrd, "mInitialApplication",
-                mOrigApp);
+            /* Force mPackageInfo.mApplication to refer to appOrig. */
+            Class clsLoadedApk = Class.forName("android.app.LoadedApk");
+            Field fidApp = clsLoadedApk.getDeclaredField("mApplication");
+            fidApp.setAccessible(true);
+            fidApp.set(mPackageInfo, appOrig);
 
-        ArrayMap mapProvider = (ArrayMap) ReflectionWrapper.getFieldObject("android.app.ActivityThread",
-                objCurActThrd, "mProviderMap");
-        if (mapProvider == null)
+            /* Get mPackageInfo.mActivityThread object. */
+            Class clsActThrd = Class.forName("android.app.ActivityThread");
+            Field fidActThrd = clsLoadedApk.getDeclaredField("mActivityThread");
+            fidActThrd.setAccessible(true);
+            Object objActThrd = fidActThrd.get(mPackageInfo);
+
+            /* Force mActivityThread to refer to appOrig. */
+            Field fidInitApp = clsActThrd.getDeclaredField("mInitialApplication");
+            fidInitApp.setAccessible(true);
+            fidInitApp.set(objActThrd, appOrig);
+
+            /* Replace the appProxy with the appOrig for mActivityThread.mAllApplications. */
+            Field fidAllApps = clsActThrd.getDeclaredField("mAllApplications");
+            fidAllApps.setAccessible(true);
+            ArrayList<Application> alApp = (ArrayList<Application>)fidAllApps.get(objActThrd);
+            alApp.add(appOrig);
+            alApp.remove(appProxy);
+
+            /* Launch appOrig. */
+            Method mtdAttach = Application.class.getDeclaredMethod("attach", Context.class);
+            mtdAttach.setAccessible(true);
+            mtdAttach.invoke(appOrig, mCtxBase);
+            appOrig.onCreate();
+
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
             return false;
-        Iterator iterMap = mapProvider.values().iterator();
-        while (iterMap.hasNext()) {
-            Object objClientRecord = iterMap.next();
-            Object objLocalProvider = ReflectionWrapper.getFieldObject("android.app.ActivityThread$ProviderClientRecord",
-                    objClientRecord, "mLocalProvider");
-            ReflectionWrapper.setFieldObject("android.content.ContentProvider", objLocalProvider, "mContext",
-                    mOrigApp);
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+            return false;
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+            return false;
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+            return false;
         }
 
         return true;
