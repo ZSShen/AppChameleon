@@ -1,6 +1,5 @@
 package org.zsshen.simpleapplication;
 
-import android.support.v7.app.ActionBarActivity;
 import java.text.DecimalFormat;
 import android.os.Bundle;
 import android.app.Activity;
