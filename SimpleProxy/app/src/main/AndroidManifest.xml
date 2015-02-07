@@ -10,7 +10,7 @@
         android:theme="@style/AppTheme" >
         <meta-data
             android:name="ORIGINAL_APPLICATION_CLASS_NAME"
-            android:value=".SimpleApplication" >
+            android:value=".MainActivity" >
         </meta-data>
         <activity
             android:name=".MainActivity"
