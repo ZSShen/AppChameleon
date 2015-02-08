@@ -10,6 +10,7 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(LOGD_TAG_DEBUG, "The Proxy Activity is created.");
-        return;
+
+        finish();
     }
 }

@@ -1,7 +1,9 @@
 package org.zsshen.simpleproxy;
 
+import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
@@ -38,6 +40,9 @@ public class ProxyApplication extends Application {
         boolean bRtnCode = true;
         super.attachBaseContext(ctxBase);
 
+        /* Save the current context for later utilization. */
+        mCtxBase = ctxBase;
+
         /* Prepare the private storage for the dynamically loaded APK. */
         File fileOptDex = ctxBase.getDir(NAME_DIR_OPTMIZE_DEX, MODE_PRIVATE);
         File fileLib = ctxBase.getDir(NAME_DIR_LIB, MODE_PRIVATE);
@@ -56,8 +61,6 @@ public class ProxyApplication extends Application {
         if (!bRtnCode)
             return;
 
-        /* Save the current context for later utilization. */
-        mCtxBase = ctxBase;
         return;
     }
 
@@ -141,7 +144,11 @@ public class ProxyApplication extends Application {
             fidLoader.setAccessible(true);
             ClassLoader ldrProxy = (ClassLoader) fidLoader.get(wrefPkg.get());
             DexClassLoader dxldOrigApk = new DexClassLoader(szOrigApk, szOptDex, szLib, ldrProxy);
+
+            Log.d(LOGD_TAG_DEBUG, "Check1 " + mCtxBase.getClassLoader().toString());
             fidLoader.set(wrefPkg.get(), dxldOrigApk);
+            Log.d(LOGD_TAG_DEBUG, "Check2 " + mCtxBase.getClassLoader().toString());
+
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             return false;
@@ -195,6 +202,7 @@ public class ProxyApplication extends Application {
             /* Create the instance of the original app (appOrig). */
             Class clsOrig = Class.forName(szApkClass, true, getClassLoader());
             Application appOrig = (Application) clsOrig.newInstance();
+            Log.d(LOGD_TAG_DEBUG, clsOrig.getName());
 
             /* Get the instance of the proxy app (appProxy). */
             Application appProxy = (Application) getApplicationContext();
@@ -239,6 +247,15 @@ public class ProxyApplication extends Application {
             mtdAttach.setAccessible(true);
             mtdAttach.invoke(appOrig, mCtxBase);
             appOrig.onCreate();
+
+            //Class clsAct = Class.forName("org.zsshen.simpleapplication.MainActivity", true, getClassLoader());
+            //Activity actMain = (Activity) clsAct.newInstance();
+            Intent intAct = new Intent();
+            intAct.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intAct.setAction(Intent.ACTION_MAIN);
+            intAct.setClassName("org.zsshen.simpleapplication", "MainActivity");
+            intAct.addCategory(Intent.CATEGORY_LAUNCHER);
+            startActivity(intAct);
 
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
