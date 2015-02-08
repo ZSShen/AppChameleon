@@ -3,6 +3,7 @@ package org.zsshen.simpleapplication;
 import java.text.DecimalFormat;
 import android.os.Bundle;
 import android.app.Activity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -12,14 +13,19 @@ import android.widget.TextView;
 
 
 public class MainActivity extends Activity {
+    static private String LOGD_TAG_DEBUG = "Debug(SimpleApplication)";
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(LOGD_TAG_DEBUG, "The MainActivity is created.");
         setContentView(R.layout.activity_main);
 
         /* Listen for button clicks. */
         Button button = (Button)findViewById(R.id.buttonCalculate);
         button.setOnClickListener(clickBmi);
+
+        Log.d(LOGD_TAG_DEBUG, "The UI is prepared.");
+        return;
     }
 
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -47,6 +53,7 @@ public class MainActivity extends Activity {
                 txtSuggest.setText(R.string.advice_light);
             else
                 txtSuggest.setText(R.string.advice_average);
+            return;
         }
     };
 }
