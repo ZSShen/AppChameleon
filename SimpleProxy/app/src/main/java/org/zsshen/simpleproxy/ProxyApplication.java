@@ -144,11 +144,7 @@ public class ProxyApplication extends Application {
             fidLoader.setAccessible(true);
             ClassLoader ldrProxy = (ClassLoader) fidLoader.get(wrefPkg.get());
             DexClassLoader dxldOrigApk = new DexClassLoader(szOrigApk, szOptDex, szLib, ldrProxy);
-
-            Log.d(LOGD_TAG_DEBUG, "Check1 " + mCtxBase.getClassLoader().toString());
             fidLoader.set(wrefPkg.get(), dxldOrigApk);
-            Log.d(LOGD_TAG_DEBUG, "Check2 " + mCtxBase.getClassLoader().toString());
-
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             return false;
@@ -248,15 +244,17 @@ public class ProxyApplication extends Application {
             mtdAttach.invoke(appOrig, mCtxBase);
             appOrig.onCreate();
 
-            //Class clsAct = Class.forName("org.zsshen.simpleapplication.MainActivity", true, getClassLoader());
-            //Activity actMain = (Activity) clsAct.newInstance();
+            /* Here is a major problem: How to start the original main activity? */
+            /*
+            ClassLoader clsLdr = getClassLoader();
+            Class clsAct = clsLdr.loadClass("org.zsshen.simpleapplication.MainActivity");
             Intent intAct = new Intent();
             intAct.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             intAct.setAction(Intent.ACTION_MAIN);
-            intAct.setClassName("org.zsshen.simpleapplication", "MainActivity");
+            intAct.setClass(appOrig, clsAct);
             intAct.addCategory(Intent.CATEGORY_LAUNCHER);
             startActivity(intAct);
-
+            */
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             return false;
