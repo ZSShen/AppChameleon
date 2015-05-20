@@ -22,6 +22,7 @@ public class MainActivity extends Activity {
 
         /* Listen for button clicks. */
         Button button = (Button)findViewById(R.id.buttonCalculate);
+        Log.d(LOGD_TAG_DEBUG, button.toString());
         button.setOnClickListener(clickBmi);
 
         Log.d(LOGD_TAG_DEBUG, "The UI is prepared.");

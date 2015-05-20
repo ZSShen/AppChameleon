@@ -196,81 +196,76 @@ public class ProxyApplication extends Application {
     private boolean patchRuntimeForOrigApk(String szApkClass) {
         try {
             /* Create the instance of the original app (appOrig). */
+            /*
             Class clsOrig = Class.forName(szApkClass, true, getClassLoader());
             Application appOrig = (Application) clsOrig.newInstance();
             Log.d(LOGD_TAG_DEBUG, clsOrig.getName());
-
+            */
             /* Get the instance of the proxy app (appProxy). */
+            /*
             Application appProxy = (Application) getApplicationContext();
-
+            */
             /* Force mbaseContext.mOuterContext to refer to appOrig. */
+            /*
             Class clsCtxImpl = Class.forName("android.app.ContextImpl");
             Field fidOutCtx = clsCtxImpl.getDeclaredField("mOuterContext");
             fidOutCtx.setAccessible(true);
             fidOutCtx.set(mCtxBase, appOrig);
-
+            */
             /* Get mPackageInfo of the context of the proxy app. */
+            /*
             Field fidPkgInfo = clsCtxImpl.getDeclaredField("mPackageInfo");
             fidPkgInfo.setAccessible(true);
             Object mPackageInfo = fidPkgInfo.get(mCtxBase);
-
+            */
             /* Force mPackageInfo.mApplication to refer to appOrig. */
+            /*
             Class clsLoadedApk = Class.forName("android.app.LoadedApk");
             Field fidApp = clsLoadedApk.getDeclaredField("mApplication");
             fidApp.setAccessible(true);
             fidApp.set(mPackageInfo, appOrig);
-
+            */
             /* Get mPackageInfo.mActivityThread object. */
+            /*
             Class clsActThrd = Class.forName("android.app.ActivityThread");
             Field fidActThrd = clsLoadedApk.getDeclaredField("mActivityThread");
             fidActThrd.setAccessible(true);
             Object objActThrd = fidActThrd.get(mPackageInfo);
-
+            */
             /* Force mActivityThread to refer to appOrig. */
+            /*
             Field fidInitApp = clsActThrd.getDeclaredField("mInitialApplication");
             fidInitApp.setAccessible(true);
             fidInitApp.set(objActThrd, appOrig);
-
+            */
             /* Replace the appProxy with the appOrig for mActivityThread.mAllApplications. */
+            /*
             Field fidAllApps = clsActThrd.getDeclaredField("mAllApplications");
             fidAllApps.setAccessible(true);
             ArrayList<Application> alApp = (ArrayList<Application>)fidAllApps.get(objActThrd);
             alApp.add(appOrig);
             alApp.remove(appProxy);
+            */
 
             /* Launch appOrig. */
+            /*
             Method mtdAttach = Application.class.getDeclaredMethod("attach", Context.class);
             mtdAttach.setAccessible(true);
             mtdAttach.invoke(appOrig, mCtxBase);
             appOrig.onCreate();
-
+            */
             /* Here is a major problem: How to start the original main activity? */
-            /*
             ClassLoader clsLdr = getClassLoader();
             Class clsAct = clsLdr.loadClass("org.zsshen.simpleapplication.MainActivity");
+            Log.d("Packer", clsAct.toString());
             Intent intAct = new Intent();
             intAct.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             intAct.setAction(Intent.ACTION_MAIN);
-            intAct.setClass(appOrig, clsAct);
+            intAct.setClass(this.getApplicationContext(), clsAct);
             intAct.addCategory(Intent.CATEGORY_LAUNCHER);
             startActivity(intAct);
-            */
+
         } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-            return false;
-        } catch (InstantiationException e) {
-            e.printStackTrace();
-            return false;
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-            return false;
-        } catch (NoSuchFieldException e) {
-            e.printStackTrace();
-            return false;
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
-            return false;
-        } catch (InvocationTargetException e) {
             e.printStackTrace();
             return false;
         } catch (NullPointerException e) {
