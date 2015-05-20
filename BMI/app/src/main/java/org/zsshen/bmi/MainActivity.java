@@ -13,11 +13,11 @@ import android.widget.TextView;
 
 
 public class MainActivity extends Activity {
-    static private String LOGD_TAG_DEBUG = "Debug(SimpleApplication)";
+    static private String LOGD_TAG_DEBUG = "(SourceApp)";
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.d(LOGD_TAG_DEBUG, "The MainActivity is created.");
+        Log.d(LOGD_TAG_DEBUG, "The main activity is created.");
         setContentView(R.layout.activity_main);
 
         /* Listen for button clicks. */
@@ -25,7 +25,7 @@ public class MainActivity extends Activity {
         Log.d(LOGD_TAG_DEBUG, button.toString());
         button.setOnClickListener(clickBmi);
 
-        Log.d(LOGD_TAG_DEBUG, "The UI is prepared.");
+        Log.d(LOGD_TAG_DEBUG, "The UI is ready.");
         return;
     }
 
