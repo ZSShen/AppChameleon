@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+    <string name="app_name">BMI</string>
+    <string name="menu_settings">Settings</string>
+    <string name="title_activity_bmi">BMI</string>
+    <string name="bmi_height">Body Height (cm)</string>
+    <string name="bmi_weight">Body Weight (kg)</string>
+    <string name="bmi_calculate">BMI Value</string>
+    <string name="hello_world"></string>
+</resources>
