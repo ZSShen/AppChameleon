@@ -1,6 +1,5 @@
 package org.zsshen.protectedbmi;
 
-import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
@@ -20,44 +19,47 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 
 import dalvik.system.DexClassLoader;
 
 public class Protector extends Application {
-    static private String NAME_ORIGINAL_APK = "Original.apk";
-    static private String NAME_DIR_OPTMIZE_DEX = "DynamicOptDex";
+    static private String NAME_SRC_APK = "SourceApp.apk";
+    static private String NAME_DIR_OPT_DEX = "DynamicOptDex";
     static private String NAME_DIR_LIB = "DynamicLib";
-    static private String STRING_META_APK_CLASS = "ORIGINAL_APPLICATION_CLASS_NAME";
-    static private String LOGD_TAG_ERROR = "Error(SimpleProxy)";
-    static private String LOGD_TAG_DEBUG = "Debug(SimpleProxy)";
+    static private String NAME_SRC_MAIN_ACTIVITY = "org.zsshen.bmi.MainActivity";
+    static private String META_KEY_APK_CLASS = "SRC_APP_CLASS_NAME";
+    static private String LOGD_TAG_ERR = "(Protector)Error";
+    static private String LOGD_TAG_DBG = "(Protector)Debug";
     static private int SIZE_BUF = 1024;
 
     static private Context mCtxBase = null;
-    static private Application mOrigApp = null;
+    static private Application mSrcApp = null;
 
-    protected void attachBaseContext(Context ctxBase) {
-        boolean bRtnCode = true;
+    /* Note that we term the protected BMI app as source app. */
+
+    protected void attachBaseContext(Context ctxBase)
+    {
         super.attachBaseContext(ctxBase);
 
         /* Save the current context for later utilization. */
         mCtxBase = ctxBase;
 
-        /* Prepare the private storage for the dynamically loaded APK. */
-        File fileOptDex = ctxBase.getDir(NAME_DIR_OPTMIZE_DEX, MODE_PRIVATE);
+        /* Prepare the private storage for the dynamically loaded source APK. */
+        File fileOptDex = ctxBase.getDir(NAME_DIR_OPT_DEX, MODE_PRIVATE);
         File fileLib = ctxBase.getDir(NAME_DIR_LIB, MODE_PRIVATE);
-        String szOptDex = fileOptDex.getAbsolutePath();
-        String szLib = fileLib.getAbsolutePath();
-        File fileApk = new File(szOptDex, NAME_ORIGINAL_APK);
-        String szOrigApk = fileApk.getAbsolutePath();
+        String szPathOptDex = fileOptDex.getAbsolutePath();
+        String szPathLib = fileLib.getAbsolutePath();
+        File fileApk = new File(szPathOptDex, NAME_SRC_APK);
+        String szPathSrcApk = fileApk.getAbsolutePath();
 
-        /* Copy the original APK in the asset folder to the newly prepared path. */
-        bRtnCode = copyOrigApkFromAssetToInternal(ctxBase, szOrigApk);
+        /* Copy the source APK in the asset folder to the newly prepared path. */
+        boolean bRtnCode = prepareSrcApk(ctxBase, szPathSrcApk);
         if (!bRtnCode)
             return;
 
-        /*  Assign the class loader of this proxy application to the original application. */
-        bRtnCode = assignClassLoaderToOrigApk(szOrigApk, szOptDex, szLib);
+        /* Create the custom class loader to load the source APK and replace the class loader
+           of the current protector application with that one. */
+        bRtnCode = replaceClassLoader(szPathSrcApk, szPathOptDex, szPathLib);
         if (!bRtnCode)
             return;
 
@@ -81,15 +83,16 @@ public class Protector extends Application {
         return;
     }
 
-    private boolean copyOrigApkFromAssetToInternal(Context ctxBase, String szOrigApk) {
+    private boolean prepareSrcApk(Context ctxBase, String szPathSrcApk)
+    {
         boolean bRtnCode = true;
 
-        File fileApk = new File(szOrigApk);
+        File fileApk = new File(szPathSrcApk);
         AssetManager astMgr = ctxBase.getAssets();
         InputStream isSrc = null;
         OutputStream osTge = null;
         try {
-            isSrc = astMgr.open(NAME_ORIGINAL_APK);
+            isSrc = astMgr.open(NAME_SRC_APK);
             osTge = new FileOutputStream(fileApk);
             byte[] aPayload = new byte[SIZE_BUF];
             int iCntRead;
@@ -124,8 +127,8 @@ public class Protector extends Application {
         return bRtnCode;
     }
 
-    private boolean assignClassLoaderToOrigApk(String szOrigApk, String szOptDex, String szLib) {
-
+    private boolean replaceClassLoader(String szPathSrcApk, String szPathOptDex, String szPathLib)
+    {
         try {
             Class clsActThrd = Class.forName("android.app.ActivityThread");
             Class clsLoaded = Class.forName("android.app.LoadedApk");
@@ -142,9 +145,9 @@ public class Protector extends Application {
 
             Field fidLoader = clsLoaded.getDeclaredField("mClassLoader");
             fidLoader.setAccessible(true);
-            ClassLoader ldrProxy = (ClassLoader) fidLoader.get(wrefPkg.get());
-            DexClassLoader dxldOrigApk = new DexClassLoader(szOrigApk, szOptDex, szLib, ldrProxy);
-            fidLoader.set(wrefPkg.get(), dxldOrigApk);
+            ClassLoader ldrProtector = (ClassLoader) fidLoader.get(wrefPkg.get());
+            DexClassLoader ldrSrcApk = new DexClassLoader(szPathSrcApk, szPathOptDex, szPathLib, ldrProtector);
+            fidLoader.set(wrefPkg.get(), ldrSrcApk);
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             return false;
@@ -175,17 +178,17 @@ public class Protector extends Application {
             String szApkPkg = mCtxBase.getPackageName();
             ApplicationInfo appInfo = pkgMgr.getApplicationInfo(szApkPkg, PackageManager.GET_META_DATA);
             if (appInfo == null) {
-                Log.d(LOGD_TAG_DEBUG, "The original app does not have application class.");
+                Log.d(LOGD_TAG_DBG, "The original app does not have application class.");
                 return false;
             }
 
             Bundle bdlXml = appInfo.metaData;
             if (bdlXml == null)
                 return false;
-            if (!bdlXml.containsKey(STRING_META_APK_CLASS))
+            if (!bdlXml.containsKey(META_KEY_APK_CLASS))
                 return false;
 
-            sbApk.append(bdlXml.getString(STRING_META_APK_CLASS));
+            sbApk.append(bdlXml.getString(META_KEY_APK_CLASS));
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
             return false;
@@ -199,7 +202,7 @@ public class Protector extends Application {
             /*
             Class clsOrig = Class.forName(szApkClass, true, getClassLoader());
             Application appOrig = (Application) clsOrig.newInstance();
-            Log.d(LOGD_TAG_DEBUG, clsOrig.getName());
+            Log.d(LOGD_TAG_DBG, clsOrig.getName());
             */
             /* Get the instance of the proxy app (appProxy). */
             /*
@@ -254,10 +257,10 @@ public class Protector extends Application {
             mtdAttach.invoke(appOrig, mCtxBase);
             appOrig.onCreate();
             */
-            /* Here is a major problem: How to start the original main activity? */
-            ClassLoader clsLdr = getClassLoader();
-            Class clsAct = clsLdr.loadClass("org.zsshen.simpleapplication.MainActivity");
-            Log.d("Packer", clsAct.toString());
+
+            /* Launch the source main activity. */
+            ClassLoader ldrSrcApk = getClassLoader();
+            Class clsAct = ldrSrcApk.loadClass(NAME_SRC_MAIN_ACTIVITY);
             Intent intAct = new Intent();
             intAct.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             intAct.setAction(Intent.ACTION_MAIN);
