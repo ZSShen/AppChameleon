@@ -58,10 +58,13 @@ public class Protector extends Application {
         boolean bRtnCode = prepareSrcApk(ctxBase, szPathSrcApk);
         if (!bRtnCode)
             return;
+        Log.d(LOGD_TAG_DBG, "Unpack the source APK.");
 
         /* Create the custom class loader to load the source APK and replace the
            class loader of the current protector application with that one. */
         replaceClassLoader(szPathSrcApk, szPathOptDex, szPathLib);
+        Log.d(LOGD_TAG_DBG, "Replace the class loader.");
+
         return;
     }
 
@@ -74,6 +77,7 @@ public class Protector extends Application {
         bRtnCode = getSrcAppClassName(sbAppClass);
         if (!bRtnCode)
             return;
+        Log.d(LOGD_TAG_DBG, "Get the name of source application class.");
 
         /* If the source APK contains application class, we should prepare the context
            environment to let it execute smoothly. */
@@ -82,10 +86,13 @@ public class Protector extends Application {
             bRtnCode = replaceApplicationClass(szAppClass);
             if (!bRtnCode)
                 return;
+            Log.d(LOGD_TAG_DBG, "Launch the source application class.");
         }
 
         /* Launch the main activity of the source APK. */
         launchSrcMainActivity();
+        Log.d(LOGD_TAG_DBG, "Launch the source main activity.");
+
         return;
     }
 
