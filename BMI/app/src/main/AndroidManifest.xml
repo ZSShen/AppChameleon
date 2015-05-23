@@ -3,6 +3,7 @@
     package="org.zsshen.bmi" >
 
     <application
+        android:name="org.zsshen.bmi.MainApplication"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"

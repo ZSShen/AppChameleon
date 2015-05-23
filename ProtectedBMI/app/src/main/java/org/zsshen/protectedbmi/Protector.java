@@ -232,7 +232,7 @@ public class Protector extends Application {
             fidOutCtx.set(mCtxBase, appSrc);
 
             /* For "android.app.ContextImpl.mPackageInfo.mApplication". */
-            Field fidPkgInfo = clsCtxImpl.getDeclaredField("objPkgInfo");
+            Field fidPkgInfo = clsCtxImpl.getDeclaredField("mPackageInfo");
             fidPkgInfo.setAccessible(true);
             Object objPkgInfo = fidPkgInfo.get(mCtxBase);
 

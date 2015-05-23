@@ -13,7 +13,7 @@ import android.widget.TextView;
 
 
 public class MainActivity extends Activity {
-    static private String LOGD_TAG_DEBUG = "(SourceApp)";
+    static private String LOGD_TAG_DEBUG = "(BMI:Activity)";
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -22,7 +22,6 @@ public class MainActivity extends Activity {
 
         /* Listen for button clicks. */
         Button button = (Button)findViewById(R.id.buttonCalculate);
-        Log.d(LOGD_TAG_DEBUG, button.toString());
         button.setOnClickListener(clickBmi);
 
         Log.d(LOGD_TAG_DEBUG, "The UI is ready.");
