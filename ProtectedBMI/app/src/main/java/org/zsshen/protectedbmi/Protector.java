@@ -34,10 +34,11 @@ public class Protector extends Application {
     static private int SIZE_BUF = 1024;
 
     static private Context mCtxBase = null;
-    static private Application mSrcApp = null;
 
-    /* Note that we term the protected BMI app as source app. */
-
+    /*--------------------------------------------------------*
+     * Note that we term the protected BMI app as source app  *
+     * and the currently launched app as protector app.       *
+     *--------------------------------------------------------*/
     protected void attachBaseContext(Context ctxBase)
     {
         super.attachBaseContext(ctxBase);
@@ -60,10 +61,7 @@ public class Protector extends Application {
 
         /* Create the custom class loader to load the source APK and replace the
            class loader of the current protector application with that one. */
-        bRtnCode = replaceClassLoader(szPathSrcApk, szPathOptDex, szPathLib);
-        if (!bRtnCode)
-            return;
-
+        replaceClassLoader(szPathSrcApk, szPathOptDex, szPathLib);
         return;
     }
 
@@ -86,8 +84,8 @@ public class Protector extends Application {
                 return;
         }
 
-
-
+        /* Launch the main activity of the source APK. */
+        launchSrcMainActivity();
         return;
     }
 
@@ -131,7 +129,6 @@ public class Protector extends Application {
                 }
             }
         }
-
         return bRtnCode;
     }
 
@@ -175,7 +172,6 @@ public class Protector extends Application {
         } catch (NoSuchFieldException e) {
             e.printStackTrace();
         }
-
         return true;
     }
 
@@ -278,13 +274,12 @@ public class Protector extends Application {
             e.printStackTrace();
             return false;
         }
-
         return true;
     }
 
-    private boolean patchRuntimeForOrigApk(String szAppClass) {
+    private boolean launchSrcMainActivity()
+    {
         try {
-            /* Launch the source main activity. */
             ClassLoader ldrSrcApk = getClassLoader();
             Class clsAct = ldrSrcApk.loadClass(NAME_SRC_MAIN_ACTIVITY);
             Intent intAct = new Intent();
@@ -300,7 +295,6 @@ public class Protector extends Application {
             e.printStackTrace();
             return false;
         }
-
         return true;
     }
 }
