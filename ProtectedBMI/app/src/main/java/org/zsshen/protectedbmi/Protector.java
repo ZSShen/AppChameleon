@@ -19,6 +19,7 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 
 import dalvik.system.DexClassLoader;
 
@@ -27,7 +28,7 @@ public class Protector extends Application {
     static private String NAME_DIR_OPT_DEX = "DynamicOptDex";
     static private String NAME_DIR_LIB = "DynamicLib";
     static private String NAME_SRC_MAIN_ACTIVITY = "org.zsshen.bmi.MainActivity";
-    static private String META_KEY_APK_CLASS = "SRC_APP_CLASS_NAME";
+    static private String META_KEY_APP_CLASS = "SRC_APP_CLASS_NAME";
     static private String LOGD_TAG_ERR = "(Protector)Error";
     static private String LOGD_TAG_DBG = "(Protector)Debug";
     static private int SIZE_BUF = 1024;
@@ -41,7 +42,7 @@ public class Protector extends Application {
     {
         super.attachBaseContext(ctxBase);
 
-        /* Save the current context for later utilization. */
+        /* Save the current context for later manipulation. */
         mCtxBase = ctxBase;
 
         /* Prepare the private storage for the dynamically loaded source APK. */
@@ -57,8 +58,8 @@ public class Protector extends Application {
         if (!bRtnCode)
             return;
 
-        /* Create the custom class loader to load the source APK and replace the class loader
-           of the current protector application with that one. */
+        /* Create the custom class loader to load the source APK and replace the
+           class loader of the current protector application with that one. */
         bRtnCode = replaceClassLoader(szPathSrcApk, szPathOptDex, szPathLib);
         if (!bRtnCode)
             return;
@@ -66,19 +67,26 @@ public class Protector extends Application {
         return;
     }
 
-    public void onCreate() {
+    public void onCreate()
+    {
         boolean bRtnCode = true;
 
         super.onCreate();
-        StringBuffer sbApkClass = new StringBuffer();
-        bRtnCode = getOrigApkClassName(sbApkClass);
+        StringBuffer sbAppClass = new StringBuffer();
+        bRtnCode = getSrcAppClassName(sbAppClass);
         if (!bRtnCode)
             return;
 
-        String szApkClass = sbApkClass.toString();
-        bRtnCode = patchRuntimeForOrigApk(szApkClass);
-        if (!bRtnCode)
-            return;
+        /* If the source APK contains application class, we should prepare the context
+           environment to let it execute smoothly. */
+        if (sbAppClass.length() > 0) {
+            String szAppClass = sbAppClass.toString();
+            bRtnCode = replaceApplicationClass(szAppClass);
+            if (!bRtnCode)
+                return;
+        }
+
+
 
         return;
     }
@@ -146,7 +154,8 @@ public class Protector extends Application {
             Field fidLoader = clsLoaded.getDeclaredField("mClassLoader");
             fidLoader.setAccessible(true);
             ClassLoader ldrProtector = (ClassLoader) fidLoader.get(wrefPkg.get());
-            DexClassLoader ldrSrcApk = new DexClassLoader(szPathSrcApk, szPathOptDex, szPathLib, ldrProtector);
+            DexClassLoader ldrSrcApk = new DexClassLoader(szPathSrcApk, szPathOptDex,
+                                       szPathLib, ldrProtector);
             fidLoader.set(wrefPkg.get(), ldrSrcApk);
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
@@ -170,25 +179,25 @@ public class Protector extends Application {
         return true;
     }
 
-    private boolean getOrigApkClassName(StringBuffer sbApk) {
+    private boolean getSrcAppClassName(StringBuffer sbAppClass)
+    {
         try {
             PackageManager pkgMgr = mCtxBase.getPackageManager();
-            if (pkgMgr == null)
-                return false;
             String szApkPkg = mCtxBase.getPackageName();
-            ApplicationInfo appInfo = pkgMgr.getApplicationInfo(szApkPkg, PackageManager.GET_META_DATA);
+            ApplicationInfo appInfo = pkgMgr.getApplicationInfo(szApkPkg,
+                                      PackageManager.GET_META_DATA);
             if (appInfo == null) {
-                Log.d(LOGD_TAG_DBG, "The original app does not have application class.");
+                Log.d(LOGD_TAG_DBG, "The source APK does not have application class.");
                 return false;
             }
 
             Bundle bdlXml = appInfo.metaData;
             if (bdlXml == null)
                 return false;
-            if (!bdlXml.containsKey(META_KEY_APK_CLASS))
+            if (!bdlXml.containsKey(META_KEY_APP_CLASS))
                 return false;
 
-            sbApk.append(bdlXml.getString(META_KEY_APK_CLASS));
+            sbAppClass.append(bdlXml.getString(META_KEY_APP_CLASS));
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
             return false;
@@ -196,68 +205,85 @@ public class Protector extends Application {
         return true;
     }
 
-    private boolean patchRuntimeForOrigApk(String szApkClass) {
+    private boolean replaceApplicationClass(String szAppClass)
+    {
         try {
-            /* Create the instance of the original app (appOrig). */
-            /*
-            Class clsOrig = Class.forName(szApkClass, true, getClassLoader());
-            Application appOrig = (Application) clsOrig.newInstance();
-            Log.d(LOGD_TAG_DBG, clsOrig.getName());
-            */
-            /* Get the instance of the proxy app (appProxy). */
-            /*
-            Application appProxy = (Application) getApplicationContext();
-            */
-            /* Force mbaseContext.mOuterContext to refer to appOrig. */
-            /*
+            /* Create the instance of the source application class. */
+            Class clsSrcApp = Class.forName(szAppClass, true, getClassLoader());
+            Application appSrc = (Application) clsSrcApp.newInstance();
+
+            /* Get the instance of the protector application. */
+            Application appProtector = (Application) getApplicationContext();
+
+        /*-------------------------------------------------------------------------------*
+         * The type of mCtxBase is "android.app.ContextImpl" which is the implementation *
+         * of "android.app.Context". We should replace all of its related references to  *
+         * "android.app.Application". Now they all reference to the protector application*
+         * class, and we should force them to reference to the source application class. *
+         *-------------------------------------------------------------------------------*/
             Class clsCtxImpl = Class.forName("android.app.ContextImpl");
+
+            /* For "android.app.ContextImpl.mOuterContext". */
             Field fidOutCtx = clsCtxImpl.getDeclaredField("mOuterContext");
             fidOutCtx.setAccessible(true);
-            fidOutCtx.set(mCtxBase, appOrig);
-            */
-            /* Get mPackageInfo of the context of the proxy app. */
-            /*
-            Field fidPkgInfo = clsCtxImpl.getDeclaredField("mPackageInfo");
+            fidOutCtx.set(mCtxBase, appSrc);
+
+            /* For "android.app.ContextImpl.mPackageInfo.mApplication". */
+            Field fidPkgInfo = clsCtxImpl.getDeclaredField("objPkgInfo");
             fidPkgInfo.setAccessible(true);
-            Object mPackageInfo = fidPkgInfo.get(mCtxBase);
-            */
-            /* Force mPackageInfo.mApplication to refer to appOrig. */
-            /*
+            Object objPkgInfo = fidPkgInfo.get(mCtxBase);
+
             Class clsLoadedApk = Class.forName("android.app.LoadedApk");
             Field fidApp = clsLoadedApk.getDeclaredField("mApplication");
             fidApp.setAccessible(true);
-            fidApp.set(mPackageInfo, appOrig);
-            */
-            /* Get mPackageInfo.mActivityThread object. */
-            /*
-            Class clsActThrd = Class.forName("android.app.ActivityThread");
+            fidApp.set(objPkgInfo, appSrc);
+
+            /* For "android.app.ContextImpl.mPackageInfo.mActivityThread.mInitialApplication". */
             Field fidActThrd = clsLoadedApk.getDeclaredField("mActivityThread");
             fidActThrd.setAccessible(true);
-            Object objActThrd = fidActThrd.get(mPackageInfo);
-            */
-            /* Force mActivityThread to refer to appOrig. */
-            /*
+            Object objActThrd = fidActThrd.get(objPkgInfo);
+
+            Class clsActThrd = Class.forName("android.app.ActivityThread");
             Field fidInitApp = clsActThrd.getDeclaredField("mInitialApplication");
             fidInitApp.setAccessible(true);
-            fidInitApp.set(objActThrd, appOrig);
-            */
-            /* Replace the appProxy with the appOrig for mActivityThread.mAllApplications. */
-            /*
+            fidInitApp.set(objActThrd, appSrc);
+
+            /* For "android.app.ContextImpl.mPackageInfo.mActivityThread.mAllApplication". */
             Field fidAllApps = clsActThrd.getDeclaredField("mAllApplications");
             fidAllApps.setAccessible(true);
-            ArrayList<Application> alApp = (ArrayList<Application>)fidAllApps.get(objActThrd);
-            alApp.add(appOrig);
-            alApp.remove(appProxy);
-            */
+            ArrayList<Application> listApp = (ArrayList<Application>)fidAllApps.get(objActThrd);
+            listApp.add(appSrc);
+            listApp.remove(appProtector);
 
-            /* Launch appOrig. */
-            /*
+            /* Let the source application class attach th mCtxBase. */
             Method mtdAttach = Application.class.getDeclaredMethod("attach", Context.class);
             mtdAttach.setAccessible(true);
-            mtdAttach.invoke(appOrig, mCtxBase);
-            appOrig.onCreate();
-            */
+            mtdAttach.invoke(appSrc, mCtxBase);
+            appSrc.onCreate();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            return false;
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+            return false;
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+            return false;
+        }
 
+        return true;
+    }
+
+    private boolean patchRuntimeForOrigApk(String szAppClass) {
+        try {
             /* Launch the source main activity. */
             ClassLoader ldrSrcApk = getClassLoader();
             Class clsAct = ldrSrcApk.loadClass(NAME_SRC_MAIN_ACTIVITY);
@@ -267,7 +293,6 @@ public class Protector extends Application {
             intAct.setClass(this.getApplicationContext(), clsAct);
             intAct.addCategory(Intent.CATEGORY_LAUNCHER);
             startActivity(intAct);
-
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             return false;
