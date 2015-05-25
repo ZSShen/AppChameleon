@@ -12,6 +12,7 @@
             android:name="SRC_APP_CLASS_NAME"
             android:value="org.zsshen.bmi.MainApplication" >
         </meta-data>
+        
         <activity
             android:name="org.zsshen.bmi.MainActivity"
             android:label="@string/app_name" >
@@ -20,6 +21,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        <service
+            android:name="org.zsshen.bmi.PassiveService"
+            android:enabled="true"
+            android:exported="true" >
+        </service>
     </application>
 
 </manifest>
