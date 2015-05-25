@@ -1,6 +1,8 @@
 package org.zsshen.bmi;
 
 import java.text.DecimalFormat;
+
+import android.content.Intent;
 import android.os.Bundle;
 import android.app.Activity;
 import android.util.Log;
@@ -23,8 +25,12 @@ public class MainActivity extends Activity {
         /* Listen for button clicks. */
         Button button = (Button)findViewById(R.id.buttonCalculate);
         button.setOnClickListener(clickBmi);
-
         Log.d(LOGD_TAG_DEBUG, "The UI is ready.");
+
+        /* Start the passive service. */
+        Intent intSrv = new Intent(getApplicationContext(), PassiveService.class);
+        startService(intSrv);
+
         return;
     }
 
@@ -56,4 +62,15 @@ public class MainActivity extends Activity {
             return;
         }
     };
+
+    protected void onDestroy()
+    {
+        super.onDestroy();
+
+        /* Stop the passive service. */
+        Intent intSrv = new Intent(getApplicationContext(), PassiveService.class);
+        stopService(intSrv);
+
+        Log.d(LOGD_TAG_DEBUG, "The main activity is destroyed.");
+    }
 }

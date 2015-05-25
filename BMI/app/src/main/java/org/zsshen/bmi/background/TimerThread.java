@@ -7,7 +7,7 @@ import android.os.Message;
 import android.util.Log;
 
 
-public class TimerThread implements Runnable {
+public class TimerThread extends Thread implements Runnable {
     static private String LOGD_TAG_DEBUG = "(BMI:Background:TimerThread)";
     private int mLoopCount;
     private MessageHandler mMsgHandler;
@@ -44,7 +44,7 @@ public class TimerThread implements Runnable {
                 mMsgHandler.sendMessage(msg);
             }
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Log.d(LOGD_TAG_DEBUG, "The timer thread is interrupted.");
         }
     }
 }

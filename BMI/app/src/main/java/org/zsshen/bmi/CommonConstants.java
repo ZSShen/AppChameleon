@@ -8,5 +8,5 @@ public class CommonConstants {
     public static final String MSG_VALUE_PASSIVE_NOTIFY = "PassiveService";
     public static final String MSG_VALUE_ACTIVE_NOTIFY = "ActiveService";
 
-    public static final int TIMER_THREAD_SLEEP_PERIOD = 2000;
+    public static final int TIMER_THREAD_SLEEP_PERIOD = 5000;
 }
