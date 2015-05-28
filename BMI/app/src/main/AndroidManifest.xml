@@ -26,9 +26,10 @@
             android:exported="true" >
         </service>
 
-        <service android:name=".ActiveService"
-                 android:enabled="true"
-                 android:exported="true" >
+        <service 
+            android:name=".ActiveService"
+            android:enabled="true"
+            android:exported="true" >
         </service>
 
         <receiver
