@@ -68,8 +68,12 @@ public class MainActivity extends Activity {
         super.onDestroy();
 
         /* Stop the passive service. */
-        Intent intSrv = new Intent(getApplicationContext(), PassiveService.class);
-        stopService(intSrv);
+        Intent intSrvP = new Intent(getApplicationContext(), PassiveService.class);
+        stopService(intSrvP);
+
+        /* Stop the active service. */
+        Intent intSrvA = new Intent(getApplicationContext(), ActiveService.class);
+        stopService(intSrvA);
 
         Log.d(LOGD_TAG_DEBUG, "The main activity is destroyed.");
     }
