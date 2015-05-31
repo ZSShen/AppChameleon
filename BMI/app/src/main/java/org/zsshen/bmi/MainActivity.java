@@ -2,7 +2,9 @@ package org.zsshen.bmi;
 
 import java.text.DecimalFormat;
 
+import android.content.ContentValues;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.app.Activity;
 import android.util.Log;
@@ -12,6 +14,7 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 
 public class MainActivity extends Activity {
@@ -59,6 +62,20 @@ public class MainActivity extends Activity {
                 txtSuggest.setText(R.string.advice_light);
             else
                 txtSuggest.setText(R.string.advice_average);
+
+            /* Insert the data into content provider. */
+            int iHeight = (int)dHeight;
+            int iWeight = (int)dWeight;
+
+            ContentValues contentValues = new ContentValues();
+            contentValues.put(CommonConstants.COL_HEIGHT, iHeight);
+            contentValues.put(CommonConstants.COL_WEIGHT, iWeight);
+
+            Uri uri = Uri.parse(CommonConstants.MAIN_URI);
+            Uri uriInsert = getContentResolver().insert(uri, contentValues);
+            Toast.makeText(getBaseContext(), uriInsert.toString(),
+                    Toast.LENGTH_LONG).show();
+
             return;
         }
     };
@@ -74,6 +91,12 @@ public class MainActivity extends Activity {
         /* Stop the active service. */
         Intent intSrvA = new Intent(getApplicationContext(), ActiveService.class);
         stopService(intSrvA);
+
+        /* Delete all the records of content provider. */
+        Uri uri = Uri.parse(CommonConstants.MAIN_URI);
+        int iCountDel = getContentResolver().delete(uri, "1", null);
+        String szMsg = iCountDel + " rows are cleaned from MainProvider.";
+        Toast.makeText(getBaseContext(), szMsg, Toast.LENGTH_LONG).show();
 
         Log.d(LOGD_TAG_DEBUG, "The main activity is destroyed.");
     }

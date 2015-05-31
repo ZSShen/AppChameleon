@@ -25,8 +25,7 @@
             android:enabled="true"
             android:exported="true" >
         </service>
-
-        <service 
+        <service
             android:name=".ActiveService"
             android:enabled="true"
             android:exported="true" >
@@ -42,6 +41,13 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
+
+        <provider
+            android:name=".MainProvider"
+            android:authorities="org.zsshen.bmi.MainProvider"
+            android:enabled="true"
+            android:exported="true" >
+        </provider>
     </application>
 
 </manifest>
