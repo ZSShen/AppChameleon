@@ -23,11 +23,12 @@ public class MainProvider extends ContentProvider {
     private static final UriMatcher URI_MATCHER = new UriMatcher(UriMatcher.NO_MATCH);
     private static final int MULTIPLE_ROW = 1;
     private static final int SINGLE_ROW = 2;
-    private static final String AUTHORITY = "org.zsshen.bmi.MainProvider";
 
     static {
-        URI_MATCHER.addURI(AUTHORITY, CommonConstants.TBL_NAME, MULTIPLE_ROW);
-        URI_MATCHER.addURI(AUTHORITY, CommonConstants.TBL_NAME + "/#", SINGLE_ROW);
+        URI_MATCHER.addURI(CommonConstants.AUTHORITY, CommonConstants.RESOURCE,
+                MULTIPLE_ROW);
+        URI_MATCHER.addURI(CommonConstants.AUTHORITY, CommonConstants.RESOURCE + "/#",
+                SINGLE_ROW);
     }
 
     public boolean onCreate()
@@ -131,9 +132,9 @@ public class MainProvider extends ContentProvider {
     {
         switch (URI_MATCHER.match(uri)) {
             case MULTIPLE_ROW:
-                return "vnd.android.cursor.dir/" + CommonConstants.TBL_NAME;
+                return "vnd.android.cursor.dir/" + CommonConstants.RESOURCE;
             case SINGLE_ROW:
-                return "vnd.android.cursor.item/" + CommonConstants.TBL_NAME;
+                return "vnd.android.cursor.item/" + CommonConstants.RESOURCE;
             default:
                 Log.d(LOGD_TAG_DEBUG, "UnKnown URI: " + uri.toString());
         }

@@ -16,8 +16,11 @@ public class CommonConstants {
 
     public static final String TBL_NAME = "MainTable";
     public static final String COL_ID = "Id";
-    public static final String COL_WEIGHT = "weight";
+    public static final String COL_WEIGHT = "Weight";
     public static final String COL_HEIGHT = "Height";
+    public static final String COL_BMI = "BMI";
 
-    public static final String MAIN_URI = "content://org.zsshen.bmi.MainProvider/MainDB";
+    public static final String AUTHORITY = "org.zsshen.bmi";
+    public static final String RESOURCE = "MainProvider";
+    public static final String MAIN_URI = "content://" + AUTHORITY + "/" + RESOURCE;
 }

@@ -4,6 +4,7 @@ import java.text.DecimalFormat;
 
 import android.content.ContentValues;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.app.Activity;
@@ -26,8 +27,11 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         /* Listen for button clicks. */
-        Button button = (Button)findViewById(R.id.buttonCalculate);
-        button.setOnClickListener(clickBmi);
+        Button buttonCalc = (Button)findViewById(R.id.buttonCalculate);
+        buttonCalc.setOnClickListener(clickCalc);
+
+        Button buttonShow = (Button)findViewById(R.id.buttonShow);
+        buttonShow.setOnClickListener(clickShow);
         Log.d(LOGD_TAG_DEBUG, "The UI is ready.");
 
         /* Start the passive service. */
@@ -42,8 +46,9 @@ public class MainActivity extends Activity {
         return true;
     }
 
-    private OnClickListener clickBmi = new OnClickListener() {
-        public void onClick(View v) {
+    private OnClickListener clickCalc = new OnClickListener() {
+        public void onClick(View v)
+        {
             /* Show the BMI value. */
             DecimalFormat formatter = new DecimalFormat("0.00");
             EditText txtHeight = (EditText)findViewById(R.id.inputHeight);
@@ -70,12 +75,34 @@ public class MainActivity extends Activity {
             ContentValues contentValues = new ContentValues();
             contentValues.put(CommonConstants.COL_HEIGHT, iHeight);
             contentValues.put(CommonConstants.COL_WEIGHT, iWeight);
+            contentValues.put(CommonConstants.COL_BMI, dBmi);
 
             Uri uri = Uri.parse(CommonConstants.MAIN_URI);
             Uri uriInsert = getContentResolver().insert(uri, contentValues);
             Toast.makeText(getBaseContext(), uriInsert.toString(),
                     Toast.LENGTH_LONG).show();
 
+            return;
+        }
+    };
+
+    private OnClickListener clickShow = new OnClickListener() {
+        public void onClick(View v)
+        {
+            /* Show all the records of content provider. */
+            Uri uri = Uri.parse(CommonConstants.MAIN_URI);
+            Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+
+            if (cursor.moveToFirst()) {
+                do {
+                    String szId = cursor.getString(cursor.getColumnIndex(CommonConstants.COL_ID));
+                    String szHeight = cursor.getString(cursor.getColumnIndex(CommonConstants.COL_HEIGHT));
+                    String szWeight = cursor.getString(cursor.getColumnIndex(CommonConstants.COL_WEIGHT));
+                    String szBMI = cursor.getString(cursor.getColumnIndex(CommonConstants.COL_BMI));
+                    String szMsg = szId + ", " + szHeight + ", " + szWeight + ", " + szBMI;
+                    Toast.makeText(getBaseContext(), szMsg, Toast.LENGTH_SHORT).show();
+                } while (cursor.moveToNext());
+            }
             return;
         }
     };

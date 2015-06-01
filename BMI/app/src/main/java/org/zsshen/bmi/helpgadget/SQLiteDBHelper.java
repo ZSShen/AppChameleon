@@ -18,7 +18,8 @@ public class SQLiteDBHelper extends SQLiteOpenHelper {
         "CREATE TABLE " + CommonConstants.TBL_NAME +
         " (" + CommonConstants.COL_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
         CommonConstants.COL_WEIGHT + " INTEGER, " +
-        CommonConstants.COL_HEIGHT + " INTEGER);";
+        CommonConstants.COL_HEIGHT + " INTEGER, " +
+        CommonConstants.COL_BMI + " REAL);";
         db.execSQL(command);
     }
 
