@@ -7,5 +7,6 @@
     <string name="bmi_height">Body Height (cm)</string>
     <string name="bmi_weight">Body Weight (kg)</string>
     <string name="bmi_calculate">BMI Value</string>
+    <string name="bmi_show">BMI Show</string>
     <string name="hello_world"></string>
 </resources>

@@ -46,6 +46,13 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
+        
+        <provider
+            android:name="org.zsshen.bmi.MainProvider"
+            android:authorities="org.zsshen.bmi"
+            android:enabled="true"
+            android:exported="true" >
+        </provider>
     </application>
 
 </manifest>
