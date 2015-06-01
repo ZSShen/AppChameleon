@@ -44,7 +44,7 @@
 
         <provider
             android:name=".MainProvider"
-            android:authorities="org.zsshen.bmi.MainProvider"
+            android:authorities="org.zsshen.bmi"
             android:enabled="true"
             android:exported="true" >
         </provider>

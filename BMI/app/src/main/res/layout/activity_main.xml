@@ -50,4 +50,13 @@
         android:layout_alignParentLeft="true"
         android:layout_below="@+id/textResult" />
 
+    <Button
+        style="?android:attr/buttonStyleSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/bmi_show"
+        android:id="@+id/buttonShow"
+        android:layout_centerVertical="true"
+        android:layout_alignParentStart="true"/>
+
 </RelativeLayout>
