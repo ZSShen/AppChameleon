@@ -42,6 +42,8 @@ public class Protector extends Application {
     protected void attachBaseContext(Context ctxBase)
     {
         super.attachBaseContext(ctxBase);
+        Log.d(LOGD_TAG_DBG, "Attatch to the base context of protector app.");
+        Log.d(LOGD_TAG_DBG, ctxBase.toString());
 
         /* Save the current context for later manipulation. */
         mCtxBase = ctxBase;
@@ -55,7 +57,7 @@ public class Protector extends Application {
         String szPathSrcApk = fileApk.getAbsolutePath();
 
         /* Copy the source APK in the asset folder to the newly prepared path. */
-        boolean bRtnCode = prepareSrcApk(ctxBase, szPathSrcApk);
+        boolean bRtnCode = prepareSrcApk(szPathSrcApk);
         if (!bRtnCode)
             return;
         Log.d(LOGD_TAG_DBG, "Unpack the source APK.");
@@ -96,12 +98,12 @@ public class Protector extends Application {
         return;
     }
 
-    private boolean prepareSrcApk(Context ctxBase, String szPathSrcApk)
+    private boolean prepareSrcApk(String szPathSrcApk)
     {
         boolean bRtnCode = true;
 
         File fileApk = new File(szPathSrcApk);
-        AssetManager astMgr = ctxBase.getAssets();
+        AssetManager astMgr = mCtxBase.getAssets();
         InputStream isSrc = null;
         OutputStream osTge = null;
         try {
@@ -152,7 +154,7 @@ public class Protector extends Application {
             fidPkg.setAccessible(true);
             ArrayMap mapPkg = (ArrayMap) fidPkg.get(objCurActThrd);
 
-            String szPkg = getPackageName();
+            String szPkg = mCtxBase.getPackageName();
             WeakReference wrefPkg = (WeakReference) mapPkg.get(szPkg);
 
             Field fidLoader = clsLoaded.getDeclaredField("mClassLoader");
@@ -218,6 +220,13 @@ public class Protector extends Application {
             /* Get the instance of the protector application. */
             Application appProtector = (Application) getApplicationContext();
 
+            Log.d(LOGD_TAG_DBG, "Check the context of protector app.");
+            Log.d(LOGD_TAG_DBG, appProtector.toString());
+            Log.d(LOGD_TAG_DBG, "Check the base context of protector app.");
+            Log.d(LOGD_TAG_DBG, mCtxBase.toString());
+            Log.d(LOGD_TAG_DBG, "Check the context of source app.");
+            Log.d(LOGD_TAG_DBG, appSrc.toString());
+
         /*-------------------------------------------------------------------------------*
          * The type of mCtxBase is "android.app.ContextImpl" which is the implementation *
          * of "android.app.Context". We should replace all of its related references to  *
@@ -263,6 +272,8 @@ public class Protector extends Application {
             mtdAttach.setAccessible(true);
             mtdAttach.invoke(appSrc, mCtxBase);
             appSrc.onCreate();
+            Log.d(LOGD_TAG_DBG, "Create the original application.");
+            Log.d(LOGD_TAG_DBG, appSrc.toString());
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             return false;
@@ -303,5 +314,15 @@ public class Protector extends Application {
             return false;
         }
         return true;
+    }
+
+    /*--------------------------------------------------------*
+     * Override this function to force the content provider   *
+     * of the source app to create its own context. We do not *
+     * want that content provider reference to the protector  *
+     * app.                                                   *
+     *--------------------------------------------------------*/
+    public String getPackageName() {
+        return "";
     }
 }
