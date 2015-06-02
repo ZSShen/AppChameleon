@@ -12,6 +12,7 @@ public class BootupReceiver extends BroadcastReceiver {
     {
         /* Start the active service. */
         Log.d(LOGD_TAG_DEBUG, "The bootup receiver is created.");
+        Log.d(LOGD_TAG_DEBUG, context.toString());
         Intent intSrv = new Intent(context, ActiveService.class);
         context.startService(intSrv);
     }

@@ -24,6 +24,7 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.d(LOGD_TAG_DEBUG, "The main activity is created.");
+        Log.d(LOGD_TAG_DEBUG, getApplicationContext().toString());
         setContentView(R.layout.activity_main);
 
         /* Listen for button clicks. */

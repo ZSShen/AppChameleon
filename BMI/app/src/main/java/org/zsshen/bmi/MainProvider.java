@@ -3,6 +3,7 @@ package org.zsshen.bmi;
 import android.content.ContentProvider;
 import android.content.ContentUris;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -33,8 +34,10 @@ public class MainProvider extends ContentProvider {
 
     public boolean onCreate()
     {
+        Context ctxBase = getContext();
+        mDbHelper = new SQLiteDBHelper(ctxBase);
         Log.d(LOGD_TAG_DEBUG, "The main content provider is created.");
-        mDbHelper = new SQLiteDBHelper(getContext());
+        Log.d(LOGD_TAG_DEBUG, ctxBase.toString());
         return (mDbHelper != null)? true : false;
     }
 
@@ -65,6 +68,8 @@ public class MainProvider extends ContentProvider {
 
     public Uri insert(Uri uri, ContentValues values)
     {
+        Log.d(LOGD_TAG_DEBUG, "The main content provider is manipulated.");
+        Log.d(LOGD_TAG_DEBUG, getContext().toString());
         SQLiteDatabase dbSQLite = mDbHelper.getWritableDatabase();
         long lRowId = dbSQLite.insert(CommonConstants.TBL_NAME, "", values);
         if (lRowId > 0) {

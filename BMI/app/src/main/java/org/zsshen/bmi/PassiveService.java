@@ -29,6 +29,7 @@ public class PassiveService extends Service {
         mTimer = new TimerThread(10, mHanlder);
         mTimer.start();
         Log.d(LOGD_TAG_DEBUG, "The passive service is started.");
+        Log.d(LOGD_TAG_DEBUG, mCtxApp.toString());
 
         return START_STICKY;
     }

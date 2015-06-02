@@ -29,6 +29,7 @@ public class ActiveService extends Service {
         mTimer = new TimerThread(20, mHanlder);
         mTimer.start();
         Log.d(LOGD_TAG_DEBUG, "The active service is started.");
+        Log.d(LOGD_TAG_DEBUG, mCtxApp.toString());
 
         return START_STICKY;
     }
