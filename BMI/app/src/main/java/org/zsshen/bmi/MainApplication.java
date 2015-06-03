@@ -18,6 +18,16 @@ public class MainApplication extends Application {
     {
         super.onCreate();
         Log.d(LOGD_TAG_DEBUG, "The main application is created.");
+
+        int iNative = calcInManiApplication('+', 10, 20);
+        Log.d(LOGD_TAG_DEBUG, "Call JNI in main application: " + String.valueOf(iNative));
+
         return;
     }
+
+    static {
+        System.loadLibrary("JniMainApplication");
+        Log.d(LOGD_TAG_DEBUG, "The JNI for main application is loaded.");
+    }
+    public native int calcInManiApplication(char code, int op1, int op2);
 }
