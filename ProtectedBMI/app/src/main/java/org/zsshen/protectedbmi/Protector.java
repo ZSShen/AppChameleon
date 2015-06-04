@@ -6,11 +6,15 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.ArrayMap;
 import android.util.Log;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,6 +24,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import dalvik.system.DexClassLoader;
 
@@ -52,7 +58,7 @@ public class Protector extends Application {
         File fileOptDex = ctxBase.getDir(NAME_DIR_OPT_DEX, MODE_PRIVATE);
         File fileLib = ctxBase.getDir(NAME_DIR_LIB, MODE_PRIVATE);
         String szPathOptDex = fileOptDex.getAbsolutePath();
-        String szPathLib = fileLib.getAbsolutePath();
+        String szPathLibRoot = fileLib.getAbsolutePath();
         File fileApk = new File(szPathOptDex, NAME_SRC_APK);
         String szPathSrcApk = fileApk.getAbsolutePath();
 
@@ -60,11 +66,17 @@ public class Protector extends Application {
         boolean bRtnCode = prepareSrcApk(szPathSrcApk);
         if (!bRtnCode)
             return;
+        /* Copy the ELF libraries from the source APK to the newly prepared path. */
+        StringBuffer sbLib = new StringBuffer();
+        bRtnCode = prepareSrcLib(szPathSrcApk, szPathLibRoot, sbLib);
+        if (!bRtnCode)
+            return;
         Log.d(LOGD_TAG_DBG, "Unpack the source APK.");
 
         /* Create the custom class loader to load the source APK and replace the
            class loader of the current protector application with that one. */
-        replaceClassLoader(szPathSrcApk, szPathOptDex, szPathLib);
+        String szPathLibTree = sbLib.toString();
+        replaceClassLoader(szPathSrcApk, szPathOptDex, szPathLibTree);
         Log.d(LOGD_TAG_DBG, "Replace the class loader.");
 
         return;
@@ -141,7 +153,76 @@ public class Protector extends Application {
         return bRtnCode;
     }
 
-    private boolean replaceClassLoader(String szPathSrcApk, String szPathOptDex, String szPathLib)
+    private boolean prepareSrcLib(String szPathSrcApk, String szPathLibRoot, StringBuffer sbLib)
+    {
+        boolean bRtnCode = true;
+
+        /* Get the processor architecture. */
+        String[] aszABI = Build.SUPPORTED_ABIS;
+        ArrayList<String> listABI = new ArrayList<String>();
+        for (String szABI : aszABI) {
+            File fileLibDir = new File("lib", szABI);
+            listABI.add(fileLibDir.toString());
+        }
+
+        File fileApk = new File(szPathSrcApk);
+        ZipInputStream zipIs = null;
+        try {
+            zipIs = new ZipInputStream(new FileInputStream(fileApk));
+            ZipEntry entry;
+            while ((entry = zipIs.getNextEntry()) != null) {
+                String szEntryName = entry.getName();
+                boolean bTgeABI = false;
+                for (String szPrefix : listABI) {
+                    if (szEntryName.startsWith(szPrefix) == true) {
+                        bTgeABI = true;
+                        break;
+                    }
+                }
+                if (bTgeABI == false)
+                    continue;
+
+                /* Extract the processor dependent library from the zip entry. */
+                ByteArrayOutputStream baosEntry = new ByteArrayOutputStream();
+                byte[] aRead = new byte[SIZE_BUF];
+                int iCount;
+                while ((iCount = zipIs.read(aRead)) != -1)
+                    baosEntry.write(aRead, 0, iCount);
+                byte[] aLibBin = baosEntry.toByteArray();
+
+                /* Copy the library into the private folder. */
+                File fileLib = new File(szPathLibRoot, szEntryName);
+                String szPathLib = fileLib.getAbsolutePath();
+                String szPathParent = fileLib.getParent();
+                File fileParent = new File(szPathParent);
+                fileParent.mkdirs();
+                fileLib = new File(szPathLib);
+                OutputStream osLib = new FileOutputStream(fileLib);
+                osLib.write(aLibBin, 0, aLibBin.length);
+                osLib.close();
+                sbLib.append(szPathParent);
+                sbLib.append(File.pathSeparator);
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            bRtnCode = false;
+        } catch (IOException e) {
+            e.printStackTrace();
+            bRtnCode = false;
+        } finally {
+            if (zipIs != null) {
+                try {
+                    zipIs.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    bRtnCode = false;
+                }
+            }
+        }
+        return bRtnCode;
+    }
+
+    private boolean replaceClassLoader(String szPathSrcApk, String szPathOptDex, String szPathLibTree)
     {
         try {
             Class clsActThrd = Class.forName("android.app.ActivityThread");
@@ -161,7 +242,7 @@ public class Protector extends Application {
             fidLoader.setAccessible(true);
             ClassLoader ldrProtector = (ClassLoader) fidLoader.get(wrefPkg.get());
             DexClassLoader ldrSrcApk = new DexClassLoader(szPathSrcApk, szPathOptDex,
-                                       szPathLib, ldrProtector);
+                    szPathLibTree, ldrProtector);
             fidLoader.set(wrefPkg.get(), ldrSrcApk);
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
@@ -180,6 +261,7 @@ public class Protector extends Application {
             return false;
         } catch (NoSuchFieldException e) {
             e.printStackTrace();
+            return false;
         }
         return true;
     }
@@ -214,6 +296,7 @@ public class Protector extends Application {
     {
         try {
             /* Create the instance of the source application class. */
+            Log.d(LOGD_TAG_DBG, getClassLoader().toString());
             Class clsSrcApp = Class.forName(szAppClass, true, getClassLoader());
             Application appSrc = (Application) clsSrcApp.newInstance();
 
