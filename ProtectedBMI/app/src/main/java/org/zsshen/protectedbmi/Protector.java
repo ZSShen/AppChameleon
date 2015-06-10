@@ -76,8 +76,13 @@ public class Protector extends Application {
         /* Create the custom class loader to load the source APK and replace the
            class loader of the current protector application with that one. */
         String szPathLibTree = sbLib.toString();
-        replaceClassLoader(szPathSrcApk, szPathOptDex, szPathLibTree);
+        bRtnCode = replaceClassLoader(szPathSrcApk, szPathOptDex, szPathLibTree);
+        if (!bRtnCode)
+            return;
         Log.d(LOGD_TAG_DBG, "Replace the class loader.");
+
+        replaceResourceDir(szPathSrcApk);
+        Log.d(LOGD_TAG_DBG, "Replace the resource directory.");
 
         return;
     }
@@ -266,13 +271,54 @@ public class Protector extends Application {
         return true;
     }
 
+    private boolean replaceResourceDir(String szPathSrcApk)
+    {
+        try {
+            Class clsActThrd = Class.forName("android.app.ActivityThread");
+            Class clsLoaded = Class.forName("android.app.LoadedApk");
+
+            Method mtdCurActTrd = clsActThrd.getMethod("currentActivityThread", new Class[]{});
+            Object objCurActThrd = mtdCurActTrd.invoke(null, new Object[]{});
+
+            Field fidPkg = clsActThrd.getDeclaredField("mPackages");
+            fidPkg.setAccessible(true);
+            ArrayMap mapPkg = (ArrayMap) fidPkg.get(objCurActThrd);
+
+            String szPkg = mCtxBase.getPackageName();
+            WeakReference wrefPkg = (WeakReference) mapPkg.get(szPkg);
+
+            Field fidResDir = clsLoaded.getDeclaredField("mResDir");
+            fidResDir.setAccessible(true);
+            fidResDir.set(wrefPkg.get(), szPathSrcApk);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+            return false;
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+            return false;
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
     private boolean getSrcAppClassName(StringBuffer sbAppClass)
     {
         try {
             PackageManager pkgMgr = mCtxBase.getPackageManager();
             String szApkPkg = mCtxBase.getPackageName();
             ApplicationInfo appInfo = pkgMgr.getApplicationInfo(szApkPkg,
-                                      PackageManager.GET_META_DATA);
+                    PackageManager.GET_META_DATA);
             if (appInfo == null) {
                 Log.d(LOGD_TAG_DBG, "The source APK does not have application class.");
                 return false;
