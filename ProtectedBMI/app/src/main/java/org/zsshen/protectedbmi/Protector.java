@@ -13,7 +13,6 @@ import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -30,7 +29,8 @@ import java.util.zip.ZipInputStream;
 import dalvik.system.DexClassLoader;
 
 public class Protector extends Application {
-    static private String NAME_SRC_APK = "SourceApp.apk";
+    static private String NAME_SRC_DEX = "SourceDex.jar";
+    static private String NAME_SRC_LIB = "SourceLib.zip";
     static private String NAME_DIR_OPT_DEX = "DynamicOptDex";
     static private String NAME_DIR_LIB = "DynamicLib";
     static private String NAME_SRC_MAIN_ACTIVITY = "org.zsshen.bmi.MainActivity";
@@ -40,6 +40,7 @@ public class Protector extends Application {
     static private int SIZE_BUF = 1024;
 
     static private Context mCtxBase = null;
+    static private boolean mSuccess = true;
 
     /*--------------------------------------------------------*
      * Note that we term the protected BMI app as source app  *
@@ -59,24 +60,28 @@ public class Protector extends Application {
         File fileLib = ctxBase.getDir(NAME_DIR_LIB, MODE_PRIVATE);
         String szPathOptDex = fileOptDex.getAbsolutePath();
         String szPathLibRoot = fileLib.getAbsolutePath();
-        File fileApk = new File(szPathOptDex, NAME_SRC_APK);
-        String szPathSrcApk = fileApk.getAbsolutePath();
+        File fileDex = new File(szPathOptDex, NAME_SRC_DEX);
+        String szPathSrcDex = fileDex.getAbsolutePath();
 
-        /* Copy the source APK in the asset folder to the newly prepared path. */
-        boolean bRtnCode = prepareSrcApk(szPathSrcApk);
-        if (!bRtnCode)
+        /* Copy the source DEX in the asset folder to the private path. */
+        boolean bRtnCode = prepareSrcDex(szPathSrcDex);
+        if (!bRtnCode) {
+            mSuccess = false;
             return;
-        /* Copy the ELF libraries from the source APK to the newly prepared path. */
+        }
+        /* Copy the ELF libraries in the assets to the private path. */
         StringBuffer sbLib = new StringBuffer();
-        bRtnCode = prepareSrcLib(szPathSrcApk, szPathLibRoot, sbLib);
-        if (!bRtnCode)
+        bRtnCode = prepareSrcLib(szPathLibRoot, sbLib);
+        if (!bRtnCode) {
+            mSuccess = false;
             return;
+        }
         Log.d(LOGD_TAG_DBG, "Unpack the source APK.");
 
         /* Create the custom class loader to load the source APK and replace the
            class loader of the current protector application with that one. */
         String szPathLibTree = sbLib.toString();
-        replaceClassLoader(szPathSrcApk, szPathOptDex, szPathLibTree);
+        replaceClassLoader(szPathSrcDex, szPathOptDex, szPathLibTree);
         Log.d(LOGD_TAG_DBG, "Replace the class loader.");
 
         return;
@@ -87,6 +92,11 @@ public class Protector extends Application {
         boolean bRtnCode = true;
 
         super.onCreate();
+        if (!mSuccess) {
+            Log.d(LOGD_TAG_ERR, "Fail to set the environment for the source app.");
+            return;
+        }
+
         StringBuffer sbAppClass = new StringBuffer();
         bRtnCode = getSrcAppClassName(sbAppClass);
         if (!bRtnCode)
@@ -110,17 +120,17 @@ public class Protector extends Application {
         return;
     }
 
-    private boolean prepareSrcApk(String szPathSrcApk)
+    private boolean prepareSrcDex(String szPathSrcDex)
     {
         boolean bRtnCode = true;
 
-        File fileApk = new File(szPathSrcApk);
+        File fileDex = new File(szPathSrcDex);
         AssetManager astMgr = mCtxBase.getAssets();
         InputStream isSrc = null;
         OutputStream osTge = null;
         try {
-            isSrc = astMgr.open(NAME_SRC_APK);
-            osTge = new FileOutputStream(fileApk);
+            isSrc = astMgr.open(NAME_SRC_DEX);
+            osTge = new FileOutputStream(fileDex);
             byte[] aPayload = new byte[SIZE_BUF];
             int iCntRead;
             while (true) {
@@ -153,28 +163,30 @@ public class Protector extends Application {
         return bRtnCode;
     }
 
-    private boolean prepareSrcLib(String szPathSrcApk, String szPathLibRoot, StringBuffer sbLib)
+    private boolean prepareSrcLib(String szPathLibRoot, StringBuffer sbLib)
     {
         boolean bRtnCode = true;
 
         /* Get the processor architecture. */
         String[] aszABI = Build.SUPPORTED_ABIS;
-        ArrayList<String> listABI = new ArrayList<String>();
+        ArrayList<String> listABI = new ArrayList<>();
         for (String szABI : aszABI) {
-            File fileLibDir = new File("lib", szABI);
-            listABI.add(fileLibDir.toString());
+            File fileLibDir = new File(szABI);
+            String szPrefix = fileLibDir.toString() + "/";
+            listABI.add(szPrefix);
         }
 
-        File fileApk = new File(szPathSrcApk);
+        AssetManager astMgr = mCtxBase.getAssets();
         ZipInputStream zipIs = null;
         try {
-            zipIs = new ZipInputStream(new FileInputStream(fileApk));
+            zipIs = new ZipInputStream(astMgr.open(NAME_SRC_LIB));
             ZipEntry entry;
             while ((entry = zipIs.getNextEntry()) != null) {
                 String szEntryName = entry.getName();
                 boolean bTgeABI = false;
                 for (String szPrefix : listABI) {
-                    if (szEntryName.startsWith(szPrefix) == true) {
+                    if (szEntryName.startsWith(szPrefix) == true &&
+                        szEntryName.endsWith(".so") == true) {
                         bTgeABI = true;
                         break;
                     }
@@ -195,6 +207,7 @@ public class Protector extends Application {
                 String szPathLib = fileLib.getAbsolutePath();
                 String szPathParent = fileLib.getParent();
                 File fileParent = new File(szPathParent);
+
                 fileParent.mkdirs();
                 fileLib = new File(szPathLib);
                 OutputStream osLib = new FileOutputStream(fileLib);
@@ -222,7 +235,7 @@ public class Protector extends Application {
         return bRtnCode;
     }
 
-    private boolean replaceClassLoader(String szPathSrcApk, String szPathOptDex, String szPathLibTree)
+    private boolean replaceClassLoader(String szPathSrcDex, String szPathOptDex, String szPathLibTree)
     {
         try {
             Class clsActThrd = Class.forName("android.app.ActivityThread");
@@ -241,7 +254,7 @@ public class Protector extends Application {
             Field fidLoader = clsLoaded.getDeclaredField("mClassLoader");
             fidLoader.setAccessible(true);
             ClassLoader ldrProtector = (ClassLoader) fidLoader.get(wrefPkg.get());
-            DexClassLoader ldrSrcApk = new DexClassLoader(szPathSrcApk, szPathOptDex,
+            DexClassLoader ldrSrcApk = new DexClassLoader(szPathSrcDex, szPathOptDex,
                     szPathLibTree, ldrProtector);
             fidLoader.set(wrefPkg.get(), ldrSrcApk);
         } catch (ClassNotFoundException e) {
